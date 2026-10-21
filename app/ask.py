@@ -30,6 +30,31 @@ def ask(question: str) -> str:
 
     return response.text
 
+def read_question() -> str | None:
+    try:
+        question = input("\n[質問] ")
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return None
+    if question in ("", "exit", "quit"):
+        return None
+    return question
+
+def chat_loop(first_question: str) -> None:
+    client = genai.Client(api_key=get_api_key())
+    chat = client.chats.create(model=MODEL) 
+    question: str | None = first_question
+    while question is not None:
+        if question == "/reset":
+            chat = client.chats.create(model=MODEL)
+            print("会話履歴を消しました。")
+        else:
+            try:
+                print(f"\n{chat.send_message(question).text}")
+            except errors.APIError as e:
+                # 失敗しても終了せず、もう一度質問できるようにする
+                print(f"\n{api_error_message(e.code, e.message)}")
+        question = read_question()
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="素のLLMに質問する")
@@ -38,6 +63,7 @@ def main() -> None:
 
     print(f"[model] {MODEL}")
     print(f"[質問] {args.question}\n")
+    chat_loop(args.question)
     try:
         print(ask(args.question))
     except errors.APIError as e:
